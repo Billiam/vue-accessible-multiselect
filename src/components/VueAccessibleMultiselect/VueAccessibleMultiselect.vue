@@ -24,7 +24,7 @@
             name="placeholder"
             :placeholder="placeholder"
             ) {{ placeholder }}
-        span.v-multiselect__selected(v-if="Array.isArray(value) && value.length !== 0")
+        span.v-multiselect__selected(v-if="isSelectedTextVisible")
           slot(
             :value="value"
             :options="options"
@@ -53,8 +53,9 @@
             @keyup="keyUpHandler"
             @keyup.up="directionHandler($event, 'up')"
             @keyup.down="directionHandler($event, 'down')"
-            @keyup.esc="escapeHandler"
+            @keydown.esc.stop="escapeHandler"
             @keyup.space="spaceHandler"
+            @keydown.enter="spaceHandler"
             @keyup.home="homeAndEndHandler"
             @keyup.end="homeAndEndHandler"
             @blur="blurHandler"
@@ -65,7 +66,7 @@
               :id="getOptionId(option)"
               ref="options"
               role="option"
-              :class="{ 'v-multiselect__option--selected': isSelected(option), 'v-multiselect__option--focus': index === activeDescendantIndex }"
+              :class="[getOptionClass(option), { 'v-multiselect__option--selected': isSelected(option), 'v-multiselect__option--focus': index === activeDescendantIndex }]"
               :aria-selected="isSelected(option) ? 'true': 'false'"
               @click="input(option)"
               )
@@ -107,8 +108,7 @@ export default {
       validator: optionsValidator,
     },
     value: {
-      required: true,
-      validator: valueValidator,
+      required: true
     },
     transition: {
       type: Object,
@@ -118,6 +118,10 @@ export default {
     label: String,
     placeholder: String,
     disabled: Boolean,
+    multiple: {
+      type: Boolean,
+      default: true
+    }
   },
   data() {
     const { _uid } = this
@@ -157,14 +161,26 @@ export default {
           (!this.value || (Array.isArray(this.value) && this.value.length === 0))
       )
     },
+    isSelectedTextVisible () {
+      if (this.multiple) {
+        return Array.isArray(this.value) && this.value.length !== 0
+      } else {
+        return this.value != undefined
+      }
+    },
     selectedText() {
-      if (Array.isArray(this.value)) {
-        return this.value
-          .map(value => {
-            const option = this.options.find(option => option.value === value)
-            return option.label ? option.label : ''
-          })
-          .join(', ')
+      if (this.multiple) {
+        if (Array.isArray(this.value)) {
+          return this.value
+            .map(value => {
+              const option = this.options.find(option => option.value === value)
+              return option.label ? option.label : ''
+            })
+            .join(', ')
+        }
+      } else {
+        const option = this.options.find(option => option.value === this.value)
+        return option.label ? option.label : ''
       }
     },
   },
@@ -227,23 +243,31 @@ export default {
       }
     },
     isSelected(option) {
-      if (Array.isArray(this.value)) {
-        return this.value.includes(option.value)
+      if (this.multiple) {
+        if (Array.isArray(this.value)) {
+          return this.value.includes(option.value)
+        } else {
+          return false
+        }
       } else {
-        return false
+        return this.value === option.value
       }
     },
     input(option) {
       let value = this.value
 
-      if (!Array.isArray(value)) value = []
-
       const { value: optionValue } = option
 
-      if (value.includes(optionValue)) {
-        value.splice(value.indexOf(optionValue), 1)
+      if (this.multiple) {
+        if (!Array.isArray(value)) value = []
+
+        if (value.includes(optionValue)) {
+          value.splice(value.indexOf(optionValue), 1)
+        } else {
+          value.push(optionValue)
+        }
       } else {
-        value.push(optionValue)
+        value = optionValue
       }
 
       this.$emit('input', value)
@@ -272,6 +296,9 @@ export default {
       return `v-multiselect-option-${this.options.indexOf(option)}_${
         this.localId_
       }`
+    },
+    getOptionClass(option) {
+      return `v-multiselect-option-value-${option.value.replace(/\s+/g, '-')}`
     },
     escapeHandler() {
       this.open = false
@@ -335,7 +362,7 @@ export default {
       // if shift is pressed then select all options contiguous options
       // from the most recently selected item to the focused item
 
-      if (event.shiftKey) {
+      if (this.multiple && event.shiftKey) {
         const lastSelectedOptionIndex = this.getLastSelectedOptionIndex()
 
         if (lastSelectedOptionIndex !== -1) {
@@ -455,22 +482,24 @@ export default {
       return Boolean(this.$slots[name]) || Boolean(this.$scopedSlots[name])
     },
     keyUpHandler(e) {
-      const keyCode = e.keyCode || e._keyCode
+      if (this.multiple) {
+        const keyCode = e.keyCode || e._keyCode
 
-      if (e.ctrlKey && keyCode === KEY_A) {
-        this.toggleAll()
-        return
-      }
-
-      if (e.ctrlKey && e.shiftKey) {
-        if (keyCode === KEY_END) {
-          this.selectAllToEdge('end')
+        if (e.ctrlKey && keyCode === KEY_A) {
+          this.toggleAll()
           return
         }
 
-        if (keyCode === KEY_HOME) {
-          this.selectAllToEdge('start')
-          return
+        if (e.ctrlKey && e.shiftKey) {
+          if (keyCode === KEY_END) {
+            this.selectAllToEdge('end')
+            return
+          }
+
+          if (keyCode === KEY_HOME) {
+            this.selectAllToEdge('start')
+            return
+          }
         }
       }
 
