@@ -121,6 +121,10 @@ export default {
     multiple: {
       type: Boolean,
       default: true
+    },
+    closeOnSelect: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -174,13 +178,13 @@ export default {
           return this.value
             .map(value => {
               const option = this.options.find(option => option.value === value)
-              return option.label ? option.label : ''
+              return (option && option.label) ? option.label : ''
             })
             .join(', ')
         }
       } else {
         const option = this.options.find(option => option.value === this.value)
-        return option.label ? option.label : ''
+        return (option && option.label) ? option.label : ''
       }
     },
   },
@@ -271,6 +275,10 @@ export default {
       }
 
       this.$emit('input', value)
+
+      if (this.closeOnSelect) {
+        this.open = false
+      }
     },
     directionHandler(e, direction) {
       const { activeDescendantIndex } = this
