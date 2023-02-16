@@ -15,14 +15,17 @@ export default [
         file: 'dist/vue-accessible-multiselect.js',
         format: 'umd',
         name,
+        preferConst: true
       },
       {
         file: 'dist/vue-accessible-multiselect.common.js',
         format: 'cjs',
+        preferConst: true
       },
       {
         file: 'dist/vue-accessible-multiselect.esm.js',
         format: 'esm',
+        preferConst: true
       },
     ],
     plugins: [
